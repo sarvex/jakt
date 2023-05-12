@@ -59,7 +59,7 @@ def main():
     target_triple = args.target_triple
     cpp_include = ""
     cpp_compiler = args.cpp_compiler
-    if args.cpp_include and not args.cpp_include == "none":
+    if args.cpp_include and args.cpp_include != "none":
         cpp_include = f"-I{Path(test_file.parent, args.cpp_include)}"
 
     # clear the temp directory

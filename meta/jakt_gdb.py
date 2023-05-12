@@ -15,15 +15,13 @@ def handler_class_for_type(type, re=re.compile('^([^<]+)(<.*>)?$')):
     if not match:
         return UnhandledType
 
-    klass = match.group(1)
+    klass = match[1]
 
     if klass == 'Jakt::Array':
         return JaktArray
     elif klass == 'Jakt::RefCounted':
         return JaktRefCounted
-    elif klass == 'Jakt::RefPtr':
-        return JaktRefPtr
-    elif klass == 'Jakt::NonnullRefPtr':
+    elif klass in ['Jakt::RefPtr', 'Jakt::NonnullRefPtr']:
         return JaktRefPtr
     elif klass == 'Jakt::String':
         return JaktString
@@ -61,9 +59,8 @@ class JaktString:
     def to_string(self):
         if int(self.val["m_storage"]["m_ptr"]) == 0:
             return '""'
-        else:
-            impl = JaktRefPtr(self.val["m_storage"]).get_pointee().dereference()
-            return JaktStringStorage(impl).to_string()
+        impl = JaktRefPtr(self.val["m_storage"]).get_pointee().dereference()
+        return JaktStringStorage(impl).to_string()
 
     @classmethod
     def prettyprint_type(cls, type):
@@ -77,10 +74,9 @@ class JaktStringView:
     def to_string(self):
         if int(self.val["m_length"]) == 0:
             return '""'
-        else:
-            characters = self.val["m_characters"]
-            str_type = characters.type.target().array(self.val["m_length"]).pointer()
-            return str(characters.cast(str_type).dereference())
+        characters = self.val["m_characters"]
+        str_type = characters.type.target().array(self.val["m_length"]).pointer()
+        return str(characters.cast(str_type).dereference())
 
     @classmethod
     def prettyprint_type(cls, type):
@@ -101,9 +97,8 @@ class JaktStringStorage:
     def to_string(self):
         if int(self.val["m_length"]) == 0:
             return '""'
-        else:
-            str_type = gdb.lookup_type("char").array(self.val["m_length"])
-            return get_field_unalloced(self.val, "m_inline_buffer", str_type)
+        str_type = gdb.lookup_type("char").array(self.val["m_length"])
+        return get_field_unalloced(self.val, "m_inline_buffer", str_type)
 
     @classmethod
     def prettyprint_type(cls, type):
@@ -161,10 +156,9 @@ class JaktVariant:
 
     @classmethod
     def variant_name(cls, t, re=re.compile(r'^Jakt::.*?([^:]*)_Details::(\w+)$')):
-        match = re.match(t.name)
-        if match:
-            klass = match.group(1)
-            variant = match.group(2)
+        if match := re.match(t.name):
+            klass = match[1]
+            variant = match[2]
             return f'{klass}::{variant}'
         return handler_class_for_type(t).prettyprint_type(t)
 
@@ -215,9 +209,7 @@ class JaktPrettyPrinterLocator(gdb.printing.PrettyPrinter):
     def __call__(self, val):
         type = gdb.types.get_basic_type(val.type)
         handler = handler_class_for_type(type)
-        if handler is UnhandledType:
-            return None
-        return handler(val)
+        return None if handler is UnhandledType else handler(val)
 
 
 gdb.printing.register_pretty_printer(None, JaktPrettyPrinterLocator(), replace=True)
